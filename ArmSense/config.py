@@ -35,3 +35,7 @@ BODY_POS = (-BODY_WIDTH - 0.5, -6.0, -BODY_DEPTH/2)
 WINDOW_WIDTH = 800
 WINDOW_HEIGHT = 600
 FPS = 30
+# --- SIGNAL FILTERING ---
+# Maximal erlaubter Sprung pro Frame in Grad.
+# Alles darüber wird als Glitch ignoriert.
+MAX_ANGLE_JUMP = 360.0

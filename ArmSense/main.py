@@ -5,6 +5,7 @@ from visualization.arm_renderer import ArmVisualizer
 
 def main():
     print("--- ArmSense Start ---")
+    print("Steuerung: Maus=Kamera | '1'=Ref-Kalibrierung | '0'=Null-Kalibrierung")
     
     # 1. Module initialisieren
     sensors = SensorManager()
@@ -14,8 +15,8 @@ def main():
     print("Main Loop gestartet.")
     
     while running:
-        # A. Input verarbeiten
-        running = vis.handle_input()
+        # A. Input verarbeiten (jetzt mit sensors Uebergabe)
+        running = vis.handle_input(sensor_manager=sensors)
         
         # B. Daten holen (Model Update)
         data = sensors.get_data()
