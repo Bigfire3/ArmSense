@@ -10,9 +10,9 @@ class Body:
         self._init_labels()
 
     def _init_labels(self):
-        self.font = pygame.font.SysFont('Arial', 12, bold=True)
-        self.tex_front = self._create_text_texture("Brust", (255, 255, 255), (100, 100, 100))
-        self.tex_back = self._create_text_texture("Ruecken", (255, 255, 255), (100, 100, 100))
+        self.font = pygame.font.SysFont('Arial', 25, bold=True)
+        self.tex_front = self._create_text_texture("Ruecken", (255, 255, 255), (100, 100, 100))
+        self.tex_back = self._create_text_texture("Brust", (255, 255, 255), (100, 100, 100))
     
     def _create_text_texture(self, text, color, bg_color):
         surface = self.font.render(text, True, color, bg_color)

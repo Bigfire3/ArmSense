@@ -33,8 +33,7 @@ class SensorManager:
             self.outlier_counts[name] = 0
         
         try:
-            # Frequency-Parameter weglassen, da er auf vielen Systemen ignoriert wird
-            self.i2c = busio.I2C(board.SCL, board.SDA)
+            self.i2c = busio.I2C(board.SCL, board.SDA, frequency=10000)
             self.tca = adafruit_tca9548a.TCA9548A(self.i2c, address=MUX_ADDRESS)
             self._init_sensors()
         except Exception as e:
@@ -42,7 +41,9 @@ class SensorManager:
             print("[HAL] Starte im Simulations-Modus")
             self.dummy_mode = True
 
-        # self.calibrate_zero() # Deaktiviert: Start soll rein statisch sein (Arm haengt)
+        # Beim Start automatisch auf haengende Position kalibrieren (Live-Daten ab sofort)
+        self.calibrate_zero()
+        self.calib_stage = 1  # Live-Daten aktiv
 
     def _init_sensors(self):
         for name, channel in SENSOR_MAPPING.items():
@@ -159,10 +160,6 @@ class SensorManager:
 
     def get_data(self):
         data = {}
-        # Start-Zustand: Wir nehmen an, der Arm haengt (visual 0,0,0), solange nicht kalibriert wurde.
-        if self.calib_stage == 0 and not self.dummy_mode:
-             return {"base": (0,0,0), "arm": (0,0,0)}
-
         if self.dummy_mode: return {"base": (0,0,0), "arm": (0,0,0)}
 
         for name, sensor in self.sensors.items():

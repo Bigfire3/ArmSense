@@ -26,6 +26,9 @@ class ArmVisualizer:
         # Calibration State
         self.calib_step = 0 # 0=Idle, 1=Wait Hang, 2=Wait Fwd
         self.font = pygame.font.SysFont('Arial', 24)
+        
+        # Pose Detection State
+        self.pose_detection_active = False
 
     def _init_gl(self):
         glClearColor(0.2, 0.2, 0.2, 1.0)
@@ -68,6 +71,12 @@ class ArmVisualizer:
                 if event.key == pygame.K_0:
                     if sensor_manager:
                         sensor_manager.calibrate_zero()
+                
+                # Taste '9' für Pose Detection an/aus
+                if event.key == pygame.K_9:
+                    self.pose_detection_active = not self.pose_detection_active
+                    status = "AN" if self.pose_detection_active else "AUS"
+                    print(f"[UI] Pose Detection: {status}")
 
             # --- MAUS STEUERUNG ---
             if event.type == pygame.MOUSEBUTTONDOWN:

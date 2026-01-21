@@ -23,9 +23,9 @@ def main():
         # B. Daten holen (Model Update)
         data = sensors.get_data()
         
-        # C. Pose erkennen (nur wenn kalibriert)
+        # C. Pose erkennen (wenn manuell aktiviert mit Taste 9)
         pose_text = ""
-        if sensors.is_calibrated:
+        if vis.pose_detection_active:
             pose_text = detector.detect(data)
 
         # D. Grafik zeichnen (View Update)

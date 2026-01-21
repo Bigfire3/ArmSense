@@ -2,7 +2,7 @@ class PoseDetector:
     def __init__(self):
         self.current_pose = "Unbekannt"
         # Toleranz in Grad +/-
-        self.TOL = 25.0
+        self.TOL = 15.0
 
     def detect(self, sensor_data):
         """
