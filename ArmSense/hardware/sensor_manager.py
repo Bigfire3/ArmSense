@@ -79,8 +79,12 @@ class SensorManager:
 
     def _calibrate_common(self, targets):
         """Interne Hilfsfunktion für Kalibrierung"""
-        if self.dummy_mode: return
+        if self.dummy_mode:
+            print("[HAL] Dummy Mode: Calibration ignored.")
+            return
         
+        print(f"[HAL] Starting Calibration for targets: {targets}")
+
         # Filter zurücksetzen, damit der Sprung zur neuen Pose nicht blockiert wird
         for name, target_val in targets.items():
             self.last_valid_data[name] = target_val
@@ -91,28 +95,33 @@ class SensorManager:
             attempts = 0
             target = targets.get(name, (0,0,0))
 
-            while not got_value and attempts < 60:
+            # Increased Attempts and added debug prints
+            while not got_value and attempts < 100:
                 try:
                     euler = sensor.euler
+                    # Debug print euler every 10 attempts to see if we get data
+                    if attempts % 10 == 0:
+                        print(f"[HAL] Reading {name}: {euler}")
+                        
                     if euler and len(euler) == 3 and euler[0] is not None:
                         # Offset Berechnung: Offset = Aktuell - Ziel
-                        # Wir nutzen Modulo nicht hier, sondern bei der Ausgabe.
-                        # Einfache Differenz reicht.
                         off_h = euler[0] - target[0]
                         off_r = euler[1] - target[1]
                         off_p = euler[2] - target[2]
                         
                         self.offsets[name] = (off_h, off_r, off_p)
-                        print(f"[HAL] -> {name} kalibriert auf Ziel {target}")
+                        print(f"[HAL] SUCCESS -> {name} offset set to {self.offsets[name]}")
                         got_value = True
                     else:
-                        time.sleep(0.05)
-                except OSError:
-                    time.sleep(0.05)
+                        time.sleep(0.02)
+                except Exception as e:
+                    # Catch all to see what's wrong
+                    print(f"[HAL] Error reading {name}: {e}")
+                    time.sleep(0.02)
                 attempts += 1
             
             if not got_value:
-                print(f"[HAL] WARNUNG: Konnte {name} nicht kalibrieren.")
+                print(f"[HAL] ERROR: FAILED to calibrate {name} (Timeout/No Data).")
 
     def calibrate_two_point_step1(self):
         """
