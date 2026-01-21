@@ -33,7 +33,7 @@ class SensorManager:
             self.outlier_counts[name] = 0
         
         try:
-            self.i2c = busio.I2C(board.SCL, board.SDA, frequency=10000)
+            self.i2c = busio.I2C(board.SCL, board.SDA, frequency=Certificate000)
             self.tca = adafruit_tca9548a.TCA9548A(self.i2c, address=MUX_ADDRESS)
             self._init_sensors()
         except Exception as e:
@@ -79,12 +79,8 @@ class SensorManager:
 
     def _calibrate_common(self, targets):
         """Interne Hilfsfunktion für Kalibrierung"""
-        if self.dummy_mode:
-            print("[HAL] Dummy Mode: Calibration ignored.")
-            return
+        if self.dummy_mode: return
         
-        print(f"[HAL] Starting Calibration for targets: {targets}")
-
         # Filter zurücksetzen, damit der Sprung zur neuen Pose nicht blockiert wird
         for name, target_val in targets.items():
             self.last_valid_data[name] = target_val
@@ -95,14 +91,9 @@ class SensorManager:
             attempts = 0
             target = targets.get(name, (0,0,0))
 
-            # Increased Attempts and added debug prints
             while not got_value and attempts < 100:
                 try:
-                    euler = sensor.euler
-                    # Debug print euler every 10 attempts to see if we get data
-                    if attempts % 10 == 0:
-                        print(f"[HAL] Reading {name}: {euler}")
-                        
+                    euler = sensor.euler 
                     if euler and len(euler) == 3 and euler[0] is not None:
                         # Offset Berechnung: Offset = Aktuell - Ziel
                         off_h = euler[0] - target[0]
@@ -110,18 +101,16 @@ class SensorManager:
                         off_p = euler[2] - target[2]
                         
                         self.offsets[name] = (off_h, off_r, off_p)
-                        print(f"[HAL] SUCCESS -> {name} offset set to {self.offsets[name]}")
+                        print(f"[HAL] {name} calibrated.")
                         got_value = True
                     else:
                         time.sleep(0.02)
-                except Exception as e:
-                    # Catch all to see what's wrong
-                    print(f"[HAL] Error reading {name}: {e}")
+                except Exception:
                     time.sleep(0.02)
                 attempts += 1
             
             if not got_value:
-                print(f"[HAL] ERROR: FAILED to calibrate {name} (Timeout/No Data).")
+                print(f"[HAL] ERROR: FAILED to calibrate {name}.")
 
     def calibrate_two_point_step1(self):
         """
