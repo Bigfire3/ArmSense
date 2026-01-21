@@ -33,7 +33,8 @@ class SensorManager:
             self.outlier_counts[name] = 0
         
         try:
-            self.i2c = busio.I2C(board.SCL, board.SDA, frequency=I2C_FREQ)
+            # Frequency-Parameter weglassen, da er auf vielen Systemen ignoriert wird
+            self.i2c = busio.I2C(board.SCL, board.SDA)
             self.tca = adafruit_tca9548a.TCA9548A(self.i2c, address=MUX_ADDRESS)
             self._init_sensors()
         except Exception as e:
