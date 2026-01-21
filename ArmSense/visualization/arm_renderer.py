@@ -219,20 +219,20 @@ class ArmVisualizer:
         glPushMatrix()
         glRotatef(h1, 1, 0, 0)
         glRotatef(r1, 0, 0, 1) # Roll -> Z (Sideways)
-        glRotatef(p1, 0, 1, 0) # Pitch -> Y (Forward)
+        glRotatef(-p1, 0, 1, 0) # Pitch -> Y (Forward) - invertiert
         self._draw_segment(ARM_LENGTH_1, (1, 0.2, 0.2))
         
         # Unterarm
         glTranslatef(ARM_LENGTH_1, 0, 0)
         # Undo Transformations (Inverse Order of Upper Arm)
-        glRotatef(-p1, 0, 1, 0)
+        glRotatef(p1, 0, 1, 0)
         glRotatef(-r1, 0, 0, 1)
         glRotatef(-h1, 1, 0, 0)
         
         # Apply Forearm Transformations
         glRotatef(h2, 1, 0, 0)
         glRotatef(r2, 0, 0, 1)
-        glRotatef(p2, 0, 1, 0)
+        glRotatef(-p2, 0, 1, 0) # Pitch invertiert
         self._draw_segment(ARM_LENGTH_2, (0.2, 1, 0.2))
         
         glPopMatrix()

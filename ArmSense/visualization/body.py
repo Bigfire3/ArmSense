@@ -11,8 +11,8 @@ class Body:
 
     def _init_labels(self):
         self.font = pygame.font.SysFont('Arial', 25, bold=True)
-        self.tex_front = self._create_text_texture("Ruecken", (255, 255, 255), (100, 100, 100))
-        self.tex_back = self._create_text_texture("Brust", (255, 255, 255), (100, 100, 100))
+        self.tex_front = self._create_text_texture("Brust", (255, 255, 255), (100, 100, 100))
+        self.tex_back = self._create_text_texture("Ruecken", (255, 255, 255), (100, 100, 100))
     
     def _create_text_texture(self, text, color, bg_color):
         surface = self.font.render(text, True, color, bg_color)
@@ -57,12 +57,12 @@ class Body:
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Zeichne Labels
-        # Front (Vertices 4,5,6,7)
-        self._draw_label_face(self.tex_front, self.vertices[4], self.vertices[5], self.vertices[6], self.vertices[7])
+        # Zeichne Labels (Front/Back vertauscht)
+        # Back ist jetzt vorne (Vertices 4,5,6,7) -> Ruecken
+        self._draw_label_face(self.tex_back, self.vertices[4], self.vertices[5], self.vertices[6], self.vertices[7])
         
-        # Back (Vertices 0,1,2,3) - Reversed for correct view from back
-        self._draw_label_face(self.tex_back, self.vertices[1], self.vertices[0], self.vertices[3], self.vertices[2])
+        # Front ist jetzt hinten (Vertices 0,1,2,3) -> Brust
+        self._draw_label_face(self.tex_front, self.vertices[1], self.vertices[0], self.vertices[3], self.vertices[2])
 
         # Rest grau
         glDisable(GL_TEXTURE_2D)
