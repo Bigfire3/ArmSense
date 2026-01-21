@@ -1,7 +1,13 @@
-# visualization/body.py
+import sys
+import os
 from OpenGL.GL import *
 import pygame
-from ArmSense.ArmSense.config import *
+
+# --- IMPORT FIX ---
+# Fügt das Hauptverzeichnis zum Pfad hinzu, um config.py zu finden
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config import *
 
 class Body:
     def __init__(self):

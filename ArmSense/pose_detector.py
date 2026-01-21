@@ -1,42 +1,47 @@
+# pose_detector.py
 import math
 
 class PoseDetector:
     def __init__(self):
         self.current_pose = "Unbekannt"
-        # Toleranz in Grad +/- (etwas groesser, da wir alle Achsen messen)
-        self.TOL = 20.0
+        # Toleranz in Grad (+/-)
+        self.TOL = 25.0
 
     def detect(self, sensor_data):
         """
-        Analysiert die Quaternion-Daten.
-        sensor_data = {"base": (w,x,y,z), "arm": (w,x,y,z)}
+        Analysiert die Quaternion-Daten und erkennt die Pose.
         """
         q_base = sensor_data.get("base", (1,0,0,0))
         q_arm = sensor_data.get("arm", (1,0,0,0))
         
-        # Berechne Abweichung von Identity (Hanging = 0 deg)
+        # Berechne Winkelabweichung vom Nullpunkt (Hängen = 0 Grad)
         deg_base = self._get_angle_from_identity(q_base)
         deg_arm = self._get_angle_from_identity(q_arm)
         
-        # 1. Arm haengt (Beide ~0)
+        # Debugging: Zeigt die Winkel live im Terminal (falls nötig einkommentieren)
+        # print(f"DEBUG: Base={int(deg_base)}° Arm={int(deg_arm)}°")
+
+        # 1. Arm haengt (Beide nahe 0°)
         if deg_base < self.TOL and deg_arm < self.TOL:
             return "Arm haengt"
 
-        # 2. L-Form (Base~0, Arm~90)
+        # 2. L-Form (Oberarm hängt, Unterarm ~90°)
         if deg_base < self.TOL and abs(deg_arm - 90) < self.TOL:
-            return "L-Form (90 Grad)"
+            return "L-Form"
 
-        # 3. Arm gestreckt (Base~90, Arm~90)
+        # 3. Vorne Gestreckt (Beide ~90°)
+        # Da wir 'Vorne' als 90° Abweichung vom Hängen definiert haben
         if abs(deg_base - 90) < self.TOL and abs(deg_arm - 90) < self.TOL:
-            return "Arm gestreckt"
+            return "Vorne Gestreckt"
             
-        return f"B:{int(deg_base)} A:{int(deg_arm)}"
+        # Keine Pose erkannt -> Zeige aktuelle Winkel an
+        return f"Winkel: B{int(deg_base)} A{int(deg_arm)}"
 
     def _get_angle_from_identity(self, q):
-        """Berechnet Rotationswinkel in Grad relativ zu Identity (0,0,0)"""
+        """Berechnet Rotationswinkel eines Quaternions relativ zu (1,0,0,0) in Grad"""
         w = q[0]
-        # Clamp w fuer acos
+        # Sicherstellen, dass w im gültigen Bereich für acos liegt
         w = max(-1.0, min(1.0, w))
-        # Winkel theta = 2 * acos(w)
+        # Formel: Winkel = 2 * acos(w)
         angle_rad = 2 * math.acos(abs(w))
         return math.degrees(angle_rad)

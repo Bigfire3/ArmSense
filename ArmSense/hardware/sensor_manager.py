@@ -1,33 +1,33 @@
 # hardware/sensor_manager.py
 import time
+import sys
+import os
 import board
 import busio
 import adafruit_bno055
 import adafruit_tca9548a
-from ArmSense.config import *
-from ArmSense.utils import q_mult, q_conjugate
 
-# Fallback für Config
-try:
-    JUMP_LIMIT = MAX_ANGLE_JUMP
-except NameError:
-    JUMP_LIMIT = 25.0 
+# Pfad-Fix
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from config import *
+from utils import q_mult, q_conjugate
 
-try:
-    OUTLIER_LIMIT = MAX_OUTLIERS
-except NameError:
-    OUTLIER_LIMIT = 5
+try: JUMP_LIMIT = MAX_ANGLE_JUMP
+except NameError: JUMP_LIMIT = 25.0 
 
 class SensorManager:
     def __init__(self):
         self.sensors = {}
         self.offsets = {}
+        self.alignments = {} 
         self.dummy_mode = False
-        self.is_calibrated = False 
         
-        # Init Offsets with Identity Quaternion (w, x, y, z)
+        # Zähler für das Durchschalten der Kalibrierung
+        self.calib_cycle = 0 
+        
         for name in SENSOR_MAPPING.keys():
             self.offsets[name] = (1, 0, 0, 0)
+            self.alignments[name] = (1, 0, 0, 0)
         
         try:
             self.i2c = busio.I2C(board.SCL, board.SDA, frequency=10000)
@@ -35,69 +35,93 @@ class SensorManager:
             self._init_sensors()
         except Exception as e:
             print(f"[HAL] Hardware Fehler: {e}")
-            print("[HAL] Starte im Simulations-Modus")
             self.dummy_mode = True
 
         if not self.dummy_mode:
             print("[HAL] Warte auf Sensoren...")
-            time.sleep(2.0)
-
-        self.calibrate_zero() 
+            time.sleep(1.0)
+            self.calibrate_zero()
 
     def _init_sensors(self):
         for name, channel in SENSOR_MAPPING.items():
             try:
-                print(f"[HAL] Init Sensor '{name}' auf Kanal {channel}...")
                 bno = adafruit_bno055.BNO055_I2C(self.tca[channel], address=BNO_ADDRESS)
                 self.sensors[name] = bno
-            except Exception as e:
-                print(f"[HAL] Fehler bei Sensor '{name}': {e}")
+            except: pass
 
     def calibrate_zero(self):
-        """Quaternion Calibration: Set current pose as identity (0,0,0)"""
         print("[HAL] Kalibriere Nullpunkt (Arm haengt)...")
+        self.calib_cycle = 0 # Reset Cycle
         if self.dummy_mode: return
 
         for name, sensor in self.sensors.items():
             try:
-                # Read raw quaternion
-                q_raw = sensor.quaternion
-                if q_raw and q_raw[0] is not None:
-                    # offset = conjugate(raw) -> result = offset * raw = id
-                    self.offsets[name] = q_conjugate(q_raw)
-                    print(f"[HAL] {name} calibrated.")
-                else:
-                    print(f"[HAL] Warnung: Kein Wert von {name} fuer Kalibrierung.")
-            except Exception as e:
-                print(f"[HAL] Fehler bei Kalibrierung {name}: {e}")
+                q = sensor.quaternion
+                if q and q[0] is not None:
+                    self.offsets[name] = q_conjugate(q)
+                    self.alignments[name] = (1, 0, 0, 0) 
+            except: pass
+        print("[HAL] Nullpunkt gesetzt.")
+
+    def calibrate_forward(self):
+        """
+        ZYKLISCH: Schaltet durch 4 mögliche Ausrichtungen durch.
+        Jedes Drücken der Taste '1' dreht das Ziel-Koordinatensystem um 90 Grad.
+        """
+        if self.dummy_mode: return
         
-        self.is_calibrated = True
+        # Liste der 4 möglichen Ziele für "Vorne" (jeweils 90 Grad gerollt)
+        # 1. Standard (Daumen oben)
+        # 2. 90 Grad rechts (Daumen rechts)
+        # 3. 180 Grad (Daumen unten)
+        # 4. 270 Grad links (Daumen links)
+        targets = [
+            (0.7071, 0.0, 0.7071, 0.0),    # Modus 1
+            (0.5, 0.5, 0.5, 0.5),          # Modus 2
+            (0.0, 0.7071, 0.0, 0.7071),    # Modus 3
+            (0.5, -0.5, 0.5, -0.5)         # Modus 4
+        ]
+        
+        # Wähle aktuelles Ziel basierend auf Zähler
+        q_target = targets[self.calib_cycle % 4]
+        mode_num = (self.calib_cycle % 4) + 1
+        
+        print(f"[HAL] Kalibriere Ausrichtung -> MODUS {mode_num} / 4")
+        print("      (Wenn Bewegung falsch ist: Arm wieder vor und nochmal '1')")
 
-    def get_data(self):
+        for name_key in self.sensors.keys():
+            # Daten holen (nur Nullpunkt-korrigiert)
+            data = self.get_data(raw_align=True) 
+            q_current_zeroed = data.get(name_key, (1,0,0,0))
+            
+            # Korrektur berechnen
+            q_inv = q_conjugate(q_current_zeroed)
+            self.alignments[name_key] = q_mult(q_target, q_inv)
+            
+        # Zähler erhöhen für nächstes Mal
+        self.calib_cycle += 1
+
+    def get_data(self, raw_align=False):
         data = {}
-        # Dummy data: Identity quaternion (w=1)
-        if self.dummy_mode: 
-            return {
-                "base": (1, 0, 0, 0), 
-                "arm": (1, 0, 0, 0)
-            }
-
+        if self.dummy_mode: return {"base": (1,0,0,0), "arm": (1,0,0,0)}
+        
         for name, sensor in self.sensors.items():
             try:
-                # Get raw (w, x, y, z)
                 q_raw = sensor.quaternion
                 if q_raw and q_raw[0] is not None:
-                    # Apply calibration: q_cal = q_offset * q_raw
-                    offset = self.offsets.get(name, (1, 0, 0, 0))
-                    q_cal = q_mult(offset, q_raw)
-                    data[name] = q_cal
+                    offset = self.offsets.get(name, (1,0,0,0))
+                    q_zeroed = q_mult(offset, q_raw)
+                    
+                    if raw_align:
+                        data[name] = q_zeroed
+                    else:
+                        align = self.alignments.get(name, (1,0,0,0))
+                        data[name] = q_mult(align, q_zeroed)
                 else:
-                    # Fallback to identity or last known? 
-                    data[name] = (1, 0, 0, 0)
-            except OSError:
-                 data[name] = (1, 0, 0, 0)
+                    data[name] = (1,0,0,0)
+            except: 
+                data[name] = (1,0,0,0)
         
-        # Fill missing
         for name in SENSOR_MAPPING.keys():
             if name not in data: data[name] = (1, 0, 0, 0)
                 

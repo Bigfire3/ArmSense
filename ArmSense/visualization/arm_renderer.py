@@ -1,10 +1,15 @@
-# visualization/arm_renderer.py
+import sys
+import os
 import pygame
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from ArmSense.config import *
-from ArmSense.utils import q_to_matrix, q_rotate_vec
+
+# --- IMPORT FIX ---
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from config import *
+from utils import q_to_matrix, q_rotate_vec
 from .body import Body
 
 class ArmVisualizer:
@@ -41,58 +46,31 @@ class ArmVisualizer:
         glMatrixMode(GL_MODELVIEW)
 
     def handle_input(self, sensor_manager=None):
-        """
-        Verarbeitet Maus und Tastatur.
-        NEU: sensor_manager Argument für Kalibrierungs-Trigger
-        """
         for event in pygame.event.get():
-            if event.type == pygame.QUIT: 
-                return False
+            if event.type == pygame.QUIT: return False
             
-            # --- TASTENDRUCK ---
+            # --- TASTEN ---
             if event.type == pygame.KEYDOWN:
                 key_name = pygame.key.name(event.key)
+                
+                # Taste '0' (oder LEERTASTE): NULLPUNKT 
+                # -> Arm muss schlaff hängen!
+                if key_name in ['0', 'z', 'space']:
+                    print("[UI] Action: KALIBRIERUNG 1 - HÄNGEN (Nullpunkt)")
+                    if sensor_manager: sensor_manager.calibrate_zero()
 
-                # 2-Punkt Kalibrierung State Machine
-                if key_name == '2' or event.key == pygame.K_2 or event.unicode == '2':
-                    print("[UI] Starting 2-Point Calibration (Step 1)")
-                    self.calib_step = 1 # Start Sequence
-                
-                if event.key == pygame.K_SPACE:
-                    if self.calib_step == 1 and sensor_manager:
-                        sensor_manager.calibrate_two_point_step1()
-                        self.calib_step = 2
-                    elif self.calib_step == 2 and sensor_manager:
-                        sensor_manager.calibrate_two_point_step2()
-                        self.calib_step = 0
-                
-                # Taste '1' für Referenz-Kalibrierung (Legacy)
-                # Check KeyCode AND Unicode (Robuster)
-                if key_name == '1' or event.key == pygame.K_1 or event.unicode == '1':
-                    print("[UI] Action: '1' pressed -> Reference Pose")
-                    if sensor_manager:
-                        sensor_manager.calibrate_reference_pose()
-                    self.calib_step = 0 
-                
-                # Optional: Taste '0', 'z' oder '*' für Reset auf Null (Arm hängt)
-                is_zero_key = (key_name == '0' or event.key == pygame.K_0 or event.unicode == '0' or
-                               key_name == 'z' or event.key == pygame.K_z or
-                               event.unicode == '*' or key_name == '*')
-                               
-                if is_zero_key:
-                    print("[UI] Action: Zero Calibration triggered")
-                    if sensor_manager:
-                        sensor_manager.calibrate_zero()
-                    self.calib_step = 0 # Force reset of UI state
+                # Taste '1': AUSRICHTUNG (NEU!)
+                # -> Arm muss waagerecht nach vorne zeigen!
+                if key_name == '1':
+                    print("[UI] Action: KALIBRIERUNG 2 - VORNE (Ausrichtung)")
+                    if sensor_manager: sensor_manager.calibrate_forward()
 
-                # Taste '9' für Pose Detection an/aus
-                if key_name == '9' or event.key == pygame.K_9 or event.unicode == '9':
+                # Taste '9': Pose Detection Toggle
+                if key_name == '9':
                     self.pose_detection_active = not self.pose_detection_active
-                    status = "AN" if self.pose_detection_active else "AUS"
-                    print(f"[UI] Pose Detection: {status}")
-                    self.calib_step = 0 # Ensure overlay shows pose
+                    print(f"[UI] Pose Detection: {self.pose_detection_active}")
 
-            # --- MAUS STEUERUNG ---
+            # --- MAUS ---
             if event.type == pygame.MOUSEBUTTONDOWN:
                 if event.button == 1:
                     self.mouse_down = True
@@ -226,8 +204,6 @@ class ArmVisualizer:
         # Quaternionen (w, x, y, z)
         q_base = sensor_data["base"]
         q_arm = sensor_data["arm"]
-        
-        from .utils import q_to_matrix, q_rotate_vec
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
