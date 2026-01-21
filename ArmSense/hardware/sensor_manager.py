@@ -23,7 +23,8 @@ class SensorManager:
         self.offsets = {}
         self.dummy_mode = False
         self.is_calibrated = False # Flag für abgeschlossene 2-Punkt-Kalibrierung
-        
+        self.calib_stage = 0 # 0=Uncalibrated (Static), 1=Hanging Calibrated (Live), 2=Fully Calibrated
+
         # Speicher für Glitch-Filter
         self.last_valid_data = {}
         self.outlier_counts = {}
@@ -40,7 +41,7 @@ class SensorManager:
             print("[HAL] Starte im Simulations-Modus")
             self.dummy_mode = True
 
-        self.calibrate_zero()
+        # self.calibrate_zero() # Deaktiviert: Start soll rein statisch sein (Arm haengt)
 
     def _init_sensors(self):
         for name, channel in SENSOR_MAPPING.items():
@@ -118,6 +119,7 @@ class SensorManager:
         # Wir merken uns diese Offsets als 'hanging'
         self.calibrate_zero()
         self.temp_hanging_offsets = self.offsets.copy()
+        self.calib_stage = 1 # Ab jetzt Live-Werte anzeigen
         print("[HAL] Step 1 gespeichert. Weiter zu Step 2...")
 
     def calibrate_two_point_step2(self):
@@ -146,6 +148,7 @@ class SensorManager:
             
         self.offsets = final_offsets
         self.is_calibrated = True
+        self.calib_stage = 2
         print(f"[HAL] 2-Punkt Kalibrierung abgeschlossen: {self.offsets}")
 
     def _angle_diff(self, a, b):
@@ -155,6 +158,10 @@ class SensorManager:
 
     def get_data(self):
         data = {}
+        # Start-Zustand: Wir nehmen an, der Arm haengt (visual 0,0,0), solange nicht kalibriert wurde.
+        if self.calib_stage == 0 and not self.dummy_mode:
+             return {"base": (0,0,0), "arm": (0,0,0)}
+
         if self.dummy_mode: return {"base": (0,0,0), "arm": (0,0,0)}
 
         for name, sensor in self.sensors.items():
