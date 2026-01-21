@@ -22,6 +22,10 @@ class ArmVisualizer:
         self.cam_rot_y = -30
         self.mouse_down = False
         self.last_mouse = (0,0)
+        
+        # Calibration State
+        self.calib_step = 0 # 0=Idle, 1=Wait Hang, 2=Wait Fwd
+        self.font = pygame.font.SysFont('Arial', 24)
 
     def _init_gl(self):
         glClearColor(0.2, 0.2, 0.2, 1.0)
@@ -43,7 +47,19 @@ class ArmVisualizer:
             
             # --- TASTENDRUCK ---
             if event.type == pygame.KEYDOWN:
-                # Taste '1' für Referenz-Kalibrierung
+                # 2-Punkt Kalibrierung State Machine
+                if event.key == pygame.K_2:
+                    self.calib_step = 1 # Start Sequence
+                
+                if event.key == pygame.K_SPACE:
+                    if self.calib_step == 1 and sensor_manager:
+                        sensor_manager.calibrate_two_point_step1()
+                        self.calib_step = 2
+                    elif self.calib_step == 2 and sensor_manager:
+                        sensor_manager.calibrate_two_point_step2()
+                        self.calib_step = 0
+                
+                # Taste '1' für Referenz-Kalibrierung (Legacy)
                 if event.key == pygame.K_1:
                     if sensor_manager:
                         sensor_manager.calibrate_reference_pose()
@@ -111,6 +127,58 @@ class ArmVisualizer:
         glVertex3f(length, 0, 0)
         glEnd()
 
+    def _draw_text_overlay(self):
+        """Zeichnet 2D Text fuer Kalibrierungs-Anweisungen"""
+        if self.calib_step == 0: return
+        
+        text = ""
+        if self.calib_step == 1:
+            text = "STEP 1: Arm haengen lassen (Relaxed) -> [SPACE]"
+        elif self.calib_step == 2:
+            text = "STEP 2: Arm 90 Grad nach vorne (Forward) -> [SPACE]"
+            
+        text_surface = self.font.render(text, True, (255, 255, 0))
+        text_data = pygame.image.tostring(text_surface, "RGBA", 1)
+        w, h = text_surface.get_width(), text_surface.get_height()
+
+        glDisable(GL_DEPTH_TEST)
+        glMatrixMode(GL_PROJECTION)
+        glPushMatrix()
+        glLoadIdentity()
+        glOrtho(0, self.display[0], self.display[1], 0, -1, 1)
+        glMatrixMode(GL_MODELVIEW)
+        glPushMatrix()
+        glLoadIdentity()
+        
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        
+        # Texture setup can be optimized, but instant generation is fine for simple UI
+        tex_id = glGenTextures(1)
+        glBindTexture(GL_TEXTURE_2D, tex_id)
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, text_data)
+        
+        glColor3f(1,1,1)
+        glEnable(GL_TEXTURE_2D)
+        
+        x_pos, y_pos = 20, 20
+        glBegin(GL_QUADS)
+        glTexCoord2f(0, 0); glVertex2f(x_pos, y_pos)
+        glTexCoord2f(1, 0); glVertex2f(x_pos+w, y_pos)
+        glTexCoord2f(1, 1); glVertex2f(x_pos+w, y_pos+h)
+        glTexCoord2f(0, 1); glVertex2f(x_pos, y_pos+h)
+        glEnd()
+        
+        glDisable(GL_TEXTURE_2D)
+        glDeleteTextures([tex_id])
+        
+        glPopMatrix()
+        glMatrixMode(GL_PROJECTION)
+        glPopMatrix()
+        glMatrixMode(GL_MODELVIEW)
+        glEnable(GL_DEPTH_TEST)
+
     def render(self, sensor_data):
         h1, r1, p1 = sensor_data["base"]
         h2, r2, p2 = sensor_data["arm"]
@@ -131,15 +199,15 @@ class ArmVisualizer:
         
         # Oberarm
         glPushMatrix()
-        glRotatef(h1, 0, 1, 0)
+        glRotatef(h1, 1, 0, 0)
         glRotatef(p1, 0, 0, -1)
-        glRotatef(r1, 1, 0, 0)
+        glRotatef(r1, 0, 1, 0)
         self._draw_segment(ARM_LENGTH_1, (1, 0.2, 0.2))
         
         # Unterarm
         glTranslatef(ARM_LENGTH_1, 0, 0)
-        glRotatef(-r1, 1, 0, 0); glRotatef(-p1, 0, 0, 1); glRotatef(-h1, 0, 1, 0)
-        glRotatef(h2, 0, 1, 0); glRotatef(p2, 0, 0, 1); glRotatef(r2, 1, 0, 0)
+        glRotatef(-r1, 0, 1, 0); glRotatef(p1, 0, 0, 1); glRotatef(-h1, 1, 0, 0)
+        glRotatef(h2, 1, 0, 0); glRotatef(p2, 0, 0, 1); glRotatef(r2, 0, 1, 0)
         self._draw_segment(ARM_LENGTH_2, (0.2, 1, 0.2))
         
         glPopMatrix()
@@ -147,6 +215,7 @@ class ArmVisualizer:
         glPopMatrix()
 
         self._draw_axes_hud()
+        self._draw_text_overlay()
         
         pygame.display.flip()
         self.clock.tick(FPS)

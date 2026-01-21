@@ -12,6 +12,11 @@ try:
 except NameError:
     JUMP_LIMIT = 25.0 
 
+try:
+    OUTLIER_LIMIT = MAX_OUTLIERS
+except NameError:
+    OUTLIER_LIMIT = 5
+
 class SensorManager:
     def __init__(self):
         self.sensors = {}
@@ -20,8 +25,10 @@ class SensorManager:
         
         # Speicher für Glitch-Filter
         self.last_valid_data = {}
+        self.outlier_counts = {}
         for name in SENSOR_MAPPING.keys():
             self.last_valid_data[name] = (0, 0, 0)
+            self.outlier_counts[name] = 0
         
         try:
             self.i2c = busio.I2C(board.SCL, board.SDA, frequency=I2C_FREQ)
@@ -74,7 +81,7 @@ class SensorManager:
             attempts = 0
             target = targets.get(name, (0,0,0))
 
-            while not got_value and attempts < 10:
+            while not got_value and attempts < 60:
                 try:
                     euler = sensor.euler
                     if euler and len(euler) == 3 and euler[0] is not None:
@@ -96,6 +103,48 @@ class SensorManager:
             
             if not got_value:
                 print(f"[HAL] WARNUNG: Konnte {name} nicht kalibrieren.")
+
+    def calibrate_two_point_step1(self):
+        """
+        Schritt 1: Arm haengt (0,0,0).
+        Wir speichern die Offsets, wenden sie aber noch nicht final an,
+        oder wir speichern sie als 'Basis-Offsets'.
+        Fuer Roll/Pitch (Neigung) nehmen wir DIESE Werte.
+        """
+        print("[HAL] 2-Punkt Step 1: Hanging (Gravity Reference)...")
+        # Wir nutzen die bestehen Funktion, speichern aber das Ergebnis temporaer
+        # Da _calibrate_common direkt offsets schreibt, nutzen wir das.
+        # Wir merken uns diese Offsets als 'hanging'
+        self.calibrate_zero()
+        self.temp_hanging_offsets = self.offsets.copy()
+        print("[HAL] Step 1 gespeichert. Weiter zu Step 2...")
+
+    def calibrate_two_point_step2(self):
+        """
+        Schritt 2: Arm 90 Grad nach vorne (90,0,0).
+        Wir nutzen die Heading-Korrektur von HIER.
+        """
+        print("[HAL] 2-Punkt Step 2: Forward 90 deg (Heading Reference)...")
+        self.calibrate_reference_pose()
+        forward_offsets = self.offsets.copy()
+        
+        # MERGE:
+        # Heading (Index 0) -> Von Step 2 (Forward)
+        # Roll (Index 1)    -> Von Step 1 (Hanging)
+        # Pitch (Index 2)   -> Von Step 1 (Hanging)
+        
+        final_offsets = {}
+        for name in SENSOR_MAPPING.keys():
+            # Falls ein Sensor ausgefallen ist, Default (0,0,0)
+            off_hang = self.temp_hanging_offsets.get(name, (0,0,0))
+            off_fwd  = forward_offsets.get(name, (0,0,0))
+            
+            # (Heading_Fwd, Roll_Hang, Pitch_Hang)
+            merged = (off_fwd[0], off_hang[1], off_hang[2])
+            final_offsets[name] = merged
+            
+        self.offsets = final_offsets
+        print(f"[HAL] 2-Punkt Kalibrierung abgeschlossen: {self.offsets}")
 
     def _angle_diff(self, a, b):
         diff = abs(a - b)
@@ -124,12 +173,28 @@ class SensorManager:
                     
                     new_vector = (h, r, p)
                     
-                    # Outlier Check
+                    # Outlier Check / Glitch Filter
                     is_valid = True
+                    max_diff = 0
                     for i in range(3):
-                        if self._angle_diff(new_vector[i], last_vector[i]) > JUMP_LIMIT:
+                        d = self._angle_diff(new_vector[i], last_vector[i])
+                        if d > max_diff: max_diff = d
+                    
+                    if max_diff > JUMP_LIMIT:
+                        current_count = self.outlier_counts.get(name, 0) + 1
+                        self.outlier_counts[name] = current_count
+                        
+                        if current_count > OUTLIER_LIMIT:
+                            # Wenn der Wert laenger abweicht, ist es wohl eine echte Bewegung
+                            is_valid = True
+                            self.outlier_counts[name] = 0
+                        else:
+                            # Spikes ignorieren
                             is_valid = False
-                            break
+                    else:
+                        # Alles okay, Zaehler reset
+                        self.outlier_counts[name] = 0
+                        is_valid = True
                     
                     if is_valid:
                         self.last_valid_data[name] = new_vector

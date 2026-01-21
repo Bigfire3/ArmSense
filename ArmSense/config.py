@@ -38,4 +38,5 @@ FPS = 30
 # --- SIGNAL FILTERING ---
 # Maximal erlaubter Sprung pro Frame in Grad.
 # Alles darüber wird als Glitch ignoriert.
-MAX_ANGLE_JUMP = 360.0
+MAX_ANGLE_JUMP = 20.0
+MAX_OUTLIERS = 5  # Anzahl Frames, die ein Wert abweichen darf, bevor er akzeptiert wird
