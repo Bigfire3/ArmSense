@@ -150,26 +150,30 @@ class ArmVisualizer:
         text = ""
         color = (255, 255, 0) # Gelb fuer Instructions
         
+        # Priority 1: Calibration Steps
         if self.calib_step == 1:
             text = "STEP 1: Arm haengen lassen (Relaxed) -> [SPACE]"
         elif self.calib_step == 2:
             text = "STEP 2: Arm 90 Grad nach vorne (Forward) -> [SPACE]"
+        # Priority 2: Pose Detection Result
         elif self.pose_detection_active:
-            # Show Pose status explicitly even if "..." or empty
             display_pose = pose_text if pose_text else "Scanning..."
             text = f"Pose Detection: {display_pose}"
-            color = (0, 255, 0) # Gruen fuer Pose recognition
+            color = (0, 255, 0) # Green
+        # Priority 3: Default Instruction
         else:
-            # Standard Anzeige wenn keine spezielle Aktion laeuft
-            text = "'0': Hang (Straight) | '1': Fwd (L-Shape)"
-            color = (180, 180, 180) # Grau
+            text = "'0': Hang | '1': Fwd 90 | '9': Detection | '2': Man. Calib"
+            color = (180, 180, 180) # Grey
             
         if not text: return
             
         text_surface = self.font.render(text, True, color)
-        # Changed: flipped=0 to fix orientation (Upside down issue)
-        text_data = pygame.image.tostring(text_surface, "RGBA", 0)
+        # Check if text surface is valid
+        if text_surface.get_width() == 0: return
+
         w, h = text_surface.get_width(), text_surface.get_height()
+        # Use simple string data, ensure flipped=0 for 2D UI (Top-Left origin)
+        text_data = pygame.image.tostring(text_surface, "RGBA", 0)
 
         glDisable(GL_DEPTH_TEST)
         glMatrixMode(GL_PROJECTION)
@@ -183,7 +187,6 @@ class ArmVisualizer:
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
         
-        # Texture setup can be optimized, but instant generation is fine for simple UI
         tex_id = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, tex_id)
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
