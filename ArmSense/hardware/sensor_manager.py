@@ -41,9 +41,9 @@ class SensorManager:
             print("[HAL] Starte im Simulations-Modus")
             self.dummy_mode = True
 
-        # Beim Start automatisch auf haengende Position kalibrieren (Live-Daten ab sofort)
+        # Beim Start automatisch auf haengende Position kalibrieren
         self.calibrate_zero()
-        self.calib_stage = 1  # Live-Daten aktiv
+        self.calib_stage = 1 
 
     def _init_sensors(self):
         for name, channel in SENSOR_MAPPING.items():

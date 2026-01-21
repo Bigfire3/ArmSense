@@ -17,7 +17,8 @@ class Body:
     def _create_text_texture(self, text, color, bg_color):
         surface = self.font.render(text, True, color, bg_color)
         w, h = surface.get_width(), surface.get_height()
-        data = pygame.image.tostring(surface, "RGBA", 1)
+        # Changed: flipped=0 to fix orientation
+        data = pygame.image.tostring(surface, "RGBA", 0)
         
         tex = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, tex)

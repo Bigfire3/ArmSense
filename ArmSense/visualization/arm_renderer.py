@@ -151,13 +151,14 @@ class ArmVisualizer:
             color = (0, 255, 0) # Gruen fuer Pose recognition
         else:
             # Standard Anzeige wenn keine spezielle Aktion laeuft
-            text = "Press '0' to Zero-Calibrate (Arm hanging)"
+            text = "'0': Hang (Straight) | '1': Fwd (L-Shape)"
             color = (180, 180, 180) # Grau
             
         if not text: return
             
         text_surface = self.font.render(text, True, color)
-        text_data = pygame.image.tostring(text_surface, "RGBA", 1)
+        # Changed: flipped=0 to fix orientation (Upside down issue)
+        text_data = pygame.image.tostring(text_surface, "RGBA", 0)
         w, h = text_surface.get_width(), text_surface.get_height()
 
         glDisable(GL_DEPTH_TEST)
