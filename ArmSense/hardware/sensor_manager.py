@@ -84,6 +84,7 @@ class SensorManager:
         # Filter zurücksetzen, damit der Sprung zur neuen Pose nicht blockiert wird
         for name, target_val in targets.items():
             self.last_valid_data[name] = target_val
+            self.outlier_counts[name] = 0 # Reset Outlier Counter
 
         for name, sensor in self.sensors.items():
             got_value = False
