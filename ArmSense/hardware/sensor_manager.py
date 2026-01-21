@@ -41,6 +41,11 @@ class SensorManager:
             print("[HAL] Starte im Simulations-Modus")
             self.dummy_mode = True
 
+        # WARTEZEIT: Sensoren brauchen Zeit zum Booten (sonst lesen wir Nullwerte als 'haengend')
+        if not self.dummy_mode:
+            print("[HAL] Warte auf Sensoren...")
+            time.sleep(2.0)
+
         # Beim Start automatisch auf haengende Position kalibrieren
         self.calibrate_zero()
         self.calib_stage = 1 
@@ -62,13 +67,13 @@ class SensorManager:
     def calibrate_reference_pose(self):
         """
         Referenz-Kalibrierung (Taste 1): 
-        Setzt Base auf (0,0,0) und Arm auf (90,0,0)
+        Setzt Base auf (0,0,0) und Arm auf (0,0,90) - also L-Form via Pitch
         """
         print("[HAL] Kalibriere Referenz-Pose (Taste 1)...")
         # Hier definieren wir die Zielwerte für die aktuelle Haltung
         targets = {
             "base": (0, 0, 0),
-            "arm":  (90, 0, 0)  # H=90, R=0, P=0
+            "arm":  (0, 0, 90)  # H=0, R=0, P=90 (Rechtwinklig)
         }
         self._calibrate_common(targets)
 

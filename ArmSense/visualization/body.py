@@ -17,8 +17,8 @@ class Body:
     def _create_text_texture(self, text, color, bg_color):
         surface = self.font.render(text, True, color, bg_color)
         w, h = surface.get_width(), surface.get_height()
-        # Changed: flipped=0 to fix orientation
-        data = pygame.image.tostring(surface, "RGBA", 0)
+        # Changed: Back to 1 (flipped) for 3D textures
+        data = pygame.image.tostring(surface, "RGBA", 1)
         
         tex = glGenTextures(1)
         glBindTexture(GL_TEXTURE_2D, tex)
@@ -63,7 +63,8 @@ class Body:
         self._draw_label_face(self.tex_back, self.vertices[4], self.vertices[5], self.vertices[6], self.vertices[7])
         
         # Front ist jetzt hinten (Vertices 0,1,2,3) -> Brust
-        self._draw_label_face(self.tex_front, self.vertices[1], self.vertices[0], self.vertices[3], self.vertices[2])
+        # Fix: Order v0,v1,v2,v3 to prevent mirroring
+        self._draw_label_face(self.tex_front, self.vertices[0], self.vertices[1], self.vertices[2], self.vertices[3])
 
         # Rest grau
         glDisable(GL_TEXTURE_2D)
