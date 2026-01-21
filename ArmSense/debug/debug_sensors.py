@@ -1,9 +1,15 @@
 import sys
+import os
 import time
 from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
+
+# Pfad erweitern
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from hardware.sensor_manager import SensorManager
+from utils import q_to_euler
 
 # Configuration
 HISTORY_LEN = 100  # How many data points to show on screen
@@ -71,9 +77,13 @@ def main():
         # 1. Fetch data from hardware
         data = sensors.get_data()
         
-        # Extract values (Default to 0 if missing)
-        b_h_val, b_r_val, b_p_val = data.get("base", (0, 0, 0))
-        a_h_val, a_r_val, a_p_val = data.get("arm",  (0, 0, 0))
+        # Extract Quaternions (Default to Identity)
+        q_b = data.get("base", (1, 0, 0, 0))
+        q_a = data.get("arm",  (1, 0, 0, 0))
+
+        # Convert to Euler
+        b_h_val, b_r_val, b_p_val = q_to_euler(q_b)
+        a_h_val, a_r_val, a_p_val = q_to_euler(q_a)
 
         # 2. Update Data Containers
         # (x_data stays fixed as 0..100, we just shift y-values if using simple scrolling)

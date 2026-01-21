@@ -1,7 +1,7 @@
 # visualization/body.py
 from OpenGL.GL import *
 import pygame
-from config import *
+from ArmSense.ArmSense.config import *
 
 class Body:
     def __init__(self):

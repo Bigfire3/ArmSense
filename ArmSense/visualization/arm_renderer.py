@@ -3,7 +3,8 @@ import pygame
 from pygame.locals import *
 from OpenGL.GL import *
 from OpenGL.GLU import *
-from config import *
+from ArmSense.config import *
+from ArmSense.utils import q_to_matrix, q_rotate_vec
 from .body import Body
 
 class ArmVisualizer:
@@ -222,8 +223,11 @@ class ArmVisualizer:
         # glEnable(GL_DEPTH_TEST) # Not needed with PopAttrib
 
     def render(self, sensor_data, pose_text=""):
-        h1, r1, p1 = sensor_data["base"]
-        h2, r2, p2 = sensor_data["arm"]
+        # Quaternionen (w, x, y, z)
+        q_base = sensor_data["base"]
+        q_arm = sensor_data["arm"]
+        
+        from .utils import q_to_matrix, q_rotate_vec
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
         glLoadIdentity()
@@ -236,33 +240,57 @@ class ArmVisualizer:
         self._draw_grid()
         self.body.draw()
 
+        # Arm Ursprung (Schulter)
+        # Wir wollen, dass (0,0,0) Rotation -> Arm hängt nach UNTEN (Y-Achse negativ)
+        # Aber die Sensoren sind Identity.
+        # Wenn wir "nach unten hängend" als Identity definieren, 
+        # dann zeigt Vektor (ArmLength, 0, 0) nach rechts.
+        # Wir müssen also das System drehen.
+        
         glPushMatrix()
-        glRotatef(-90, 0, 0, 1)
-        
-        # Oberarm
+        # Drehe alles, damit X-Achse (Arm) nach UNTEN zeigt, wenn keine Rotation da ist?
+        # Oder wir sagen: Identity = Arm zeigt nach rechts (X-Achse).
+        # Wenn der Nullpunkt kalibriert ist, ist q_corrected = Identity.
+        # Dann zeigt der Arm gerade (entlang X).
+        # Aber er soll HÄNGEN (entlang negative Y).
+        # Also drehen wir das Ganze Frame um -90 um Z.
+        glRotatef(-90, 0, 0, 1) # X zeigt jetzt nach unten (Y)
+
+        # --- OBERARM ---
         glPushMatrix()
-        glRotatef(h1, 1, 0, 0)
-        glRotatef(r1, 0, 0, 1) # Roll -> Z (Sideways)
-        # Changed: Removed minus sign to fix direction (Positive Pitch = Forward)
-        glRotatef(p1, 0, 1, 0) # Pitch -> Y (Forward)
-        self._draw_segment(ARM_LENGTH_1, (1, 0.2, 0.2))
         
-        # Unterarm
-        glTranslatef(ARM_LENGTH_1, 0, 0)
-        # Undo Transformations (Inverse Order of Upper Arm)
-        glRotatef(-p1, 0, 1, 0) # Undo Pitch (Inverse of p1)
-        glRotatef(-r1, 0, 0, 1) # Undo Roll
-        glRotatef(-h1, 1, 0, 0) # Undo Heading
+        # 1. Rotation anwenden (Quaternion -> Matrix)
+        m_base = q_to_matrix(q_base)
+        glMultMatrixf(m_base)
         
-        # Apply Forearm Transformations
-        glRotatef(h2, 1, 0, 0)
-        glRotatef(r2, 0, 0, 1)
-        glRotatef(p2, 0, 1, 0) # Pitch (Positive = Forward)
-        self._draw_segment(ARM_LENGTH_2, (0.2, 1, 0.2))
+        # 2. Zeichnen
+        self._draw_segment(ARM_LENGTH_1, (1, 0.2, 0.2)) # Roter Arm
         
         glPopMatrix()
+
+        # --- UNTERARM ---
+        # Position des Ellbogens berechnen
+        # Vektor entlang der X-Achse (Länge Oberarm)
+        vec_arm1 = (ARM_LENGTH_1, 0.0, 0.0)
+        
+        # Rotiere diesen Vektor mit der Oberarm-Rotation
+        elbow_pos = q_rotate_vec(q_base, vec_arm1)
+        
+        glPushMatrix()
+        
+        # Zu Ellbogen verschieben
+        glTranslatef(elbow_pos[0], elbow_pos[1], elbow_pos[2])
+        
+        # Rotation Unterarm anwenden
+        m_arm = q_to_matrix(q_arm)
+        glMultMatrixf(m_arm)
+        
+        self._draw_segment(ARM_LENGTH_2, (0.2, 1, 0.2)) # Grüner Arm
+        
         glPopMatrix()
-        glPopMatrix()
+        
+        glPopMatrix() # Close global rotate
+        glPopMatrix() # Close camera
 
         self._draw_axes_hud()
         self._draw_text_overlay(pose_text)

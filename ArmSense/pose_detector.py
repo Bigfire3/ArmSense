@@ -1,31 +1,42 @@
+import math
+
 class PoseDetector:
     def __init__(self):
         self.current_pose = "Unbekannt"
-        # Toleranz in Grad +/-
-        self.TOL = 5.0
+        # Toleranz in Grad +/- (etwas groesser, da wir alle Achsen messen)
+        self.TOL = 20.0
 
     def detect(self, sensor_data):
         """
-        Analysiert die Sensor-Daten und gibt den Namen der Pose zurück.
-        Erwartet sensor_data = {"base": (h,r,p), "arm": (h,r,p)}
+        Analysiert die Quaternion-Daten.
+        sensor_data = {"base": (w,x,y,z), "arm": (w,x,y,z)}
         """
-        # Pitch ist Index 2 (Y-Achse im Code, 'Vorne/Hinten')
-        b_p = sensor_data["base"][2] 
-        a_p = sensor_data["arm"][2]
+        q_base = sensor_data.get("base", (1,0,0,0))
+        q_arm = sensor_data.get("arm", (1,0,0,0))
         
-        # 1. Arm gerade runter (Hanging)
-        # Beide Sensoren nahe 0 Grad
-        if abs(b_p) < self.TOL and abs(a_p) < self.TOL:
+        # Berechne Abweichung von Identity (Hanging = 0 deg)
+        deg_base = self._get_angle_from_identity(q_base)
+        deg_arm = self._get_angle_from_identity(q_arm)
+        
+        # 1. Arm haengt (Beide ~0)
+        if deg_base < self.TOL and deg_arm < self.TOL:
             return "Arm haengt"
 
-        # 2. L-Form (Unterarm oben)
-        # Base nahe 0, Arm nahe 90
-        if abs(b_p) < self.TOL and abs(a_p - 90) < self.TOL:
+        # 2. L-Form (Base~0, Arm~90)
+        if deg_base < self.TOL and abs(deg_arm - 90) < self.TOL:
             return "L-Form (90 Grad)"
 
-        # 3. Arm gerade nach vorne gestreckt (Zombie)
-        # Base nahe 90, Arm nahe 90 (da absolute Sensoren)
-        if abs(b_p - 90) < self.TOL and abs(a_p - 90) < self.TOL:
-            return "Arm gestreckt (Vorne)"
+        # 3. Arm gestreckt (Base~90, Arm~90)
+        if abs(deg_base - 90) < self.TOL and abs(deg_arm - 90) < self.TOL:
+            return "Arm gestreckt"
             
-        return "..."
+        return f"B:{int(deg_base)} A:{int(deg_arm)}"
+
+    def _get_angle_from_identity(self, q):
+        """Berechnet Rotationswinkel in Grad relativ zu Identity (0,0,0)"""
+        w = q[0]
+        # Clamp w fuer acos
+        w = max(-1.0, min(1.0, w))
+        # Winkel theta = 2 * acos(w)
+        angle_rad = 2 * math.acos(abs(w))
+        return math.degrees(angle_rad)
