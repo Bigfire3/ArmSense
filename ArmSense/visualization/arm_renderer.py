@@ -51,10 +51,11 @@ class ArmVisualizer:
             # --- TASTENDRUCK ---
             if event.type == pygame.KEYDOWN:
                 # Debug Output fuer jede Taste
-                print(f"[DEBUG] Key Pressed: {event.key} ({pygame.key.name(event.key)})")
+                key_name = pygame.key.name(event.key)
+                print(f"[DEBUG] Key: {event.key} Name: '{key_name}' Unicode: '{event.unicode}'")
 
                 # 2-Punkt Kalibrierung State Machine
-                if event.key == pygame.K_2 or event.key == pygame.K_KP2:
+                if key_name == '2' or event.key == pygame.K_2 or event.unicode == '2':
                     print("[UI] Starting 2-Point Calibration (Step 1)")
                     self.calib_step = 1 # Start Sequence
                 
@@ -68,30 +69,32 @@ class ArmVisualizer:
                 
                 # Taste '1' für Referenz-Kalibrierung (Legacy)
                 # Check KeyCode AND Unicode (Robuster)
-                if event.key == pygame.K_1 or event.key == pygame.K_KP1 or event.unicode == '1':
+                if key_name == '1' or event.key == pygame.K_1 or event.unicode == '1':
                     print("[UI] Action: '1' pressed -> Reference Pose")
                     if sensor_manager:
                         sensor_manager.calibrate_reference_pose()
                     self.calib_step = 0 
                 
                 # Optional: Taste '0' für Reset auf Null (Arm hängt)
-                if event.key == pygame.K_0 or event.key == pygame.K_KP0 or event.unicode == '0':
+                if key_name == '0' or event.key == pygame.K_0 or event.unicode == '0':
                     print("[UI] Action: '0' pressed -> Zero Calibration")
                     if sensor_manager:
                         sensor_manager.calibrate_zero()
                     self.calib_step = 0 # Force reset of UI state
                 
                 # Alternate Key for Zero: 'z'
-                if event.key == pygame.K_z:
+                if key_name == 'z' or event.key == pygame.K_z:
                     print("[UI] Action: 'z' pressed -> Zero Calibration")
                     if sensor_manager:
                         sensor_manager.calibrate_zero()
                     self.calib_step = 0
 
                 # Taste '9' für Pose Detection an/aus
-                if event.key == pygame.K_9 or event.key == pygame.K_KP9 or event.unicode == '9':
+                if key_name == '9' or event.key == pygame.K_9 or event.unicode == '9':
                     self.pose_detection_active = not self.pose_detection_active
                     status = "AN" if self.pose_detection_active else "AUS"
+                    print(f"[UI] Pose Detection: {status}")
+                    self.calib_step = 0 # Ensure overlay shows pose
                     print(f"[UI] Pose Detection: {status}")
                     self.calib_step = 0 # Ensure overlay shows pose
 
