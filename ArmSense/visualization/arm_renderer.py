@@ -51,7 +51,7 @@ class ArmVisualizer:
             # --- TASTENDRUCK ---
             if event.type == pygame.KEYDOWN:
                 # 2-Punkt Kalibrierung State Machine
-                if event.key == pygame.K_2:
+                if event.key == pygame.K_2 or event.key == pygame.K_KP2:
                     self.calib_step = 1 # Start Sequence
                 
                 if event.key == pygame.K_SPACE:
@@ -63,18 +63,18 @@ class ArmVisualizer:
                         self.calib_step = 0
                 
                 # Taste '1' für Referenz-Kalibrierung (Legacy)
-                if event.key == pygame.K_1:
+                if event.key == pygame.K_1 or event.key == pygame.K_KP1:
                     if sensor_manager:
                         sensor_manager.calibrate_reference_pose()
                 
                 # Optional: Taste '0' für Reset auf Null (Arm hängt)
-                if event.key == pygame.K_0:
+                if event.key == pygame.K_0 or event.key == pygame.K_KP0:
                     print("[UI] Request Zero-Calibration (0)...")
                     if sensor_manager:
                         sensor_manager.calibrate_zero()
                 
                 # Taste '9' für Pose Detection an/aus
-                if event.key == pygame.K_9:
+                if event.key == pygame.K_9 or event.key == pygame.K_KP9:
                     self.pose_detection_active = not self.pose_detection_active
                     status = "AN" if self.pose_detection_active else "AUS"
                     print(f"[UI] Pose Detection: {status}")
