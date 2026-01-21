@@ -69,6 +69,7 @@ class ArmVisualizer:
                 
                 # Optional: Taste '0' für Reset auf Null (Arm hängt)
                 if event.key == pygame.K_0:
+                    print("[UI] Request Zero-Calibration (0)...")
                     if sensor_manager:
                         sensor_manager.calibrate_zero()
                 
@@ -147,8 +148,10 @@ class ArmVisualizer:
             text = "STEP 1: Arm haengen lassen (Relaxed) -> [SPACE]"
         elif self.calib_step == 2:
             text = "STEP 2: Arm 90 Grad nach vorne (Forward) -> [SPACE]"
-        elif pose_text:
-            text = f"Pose: {pose_text}"
+        elif self.pose_detection_active:
+            # Show Pose status explicitly even if "..." or empty
+            display_pose = pose_text if pose_text else "Scanning..."
+            text = f"Pose Detection: {display_pose}"
             color = (0, 255, 0) # Gruen fuer Pose recognition
         else:
             # Standard Anzeige wenn keine spezielle Aktion laeuft
@@ -222,20 +225,21 @@ class ArmVisualizer:
         glPushMatrix()
         glRotatef(h1, 1, 0, 0)
         glRotatef(r1, 0, 0, 1) # Roll -> Z (Sideways)
-        glRotatef(-p1, 0, 1, 0) # Pitch -> Y (Forward) - invertiert
+        # Changed: Removed minus sign to fix direction (Positive Pitch = Forward)
+        glRotatef(p1, 0, 1, 0) # Pitch -> Y (Forward)
         self._draw_segment(ARM_LENGTH_1, (1, 0.2, 0.2))
         
         # Unterarm
         glTranslatef(ARM_LENGTH_1, 0, 0)
         # Undo Transformations (Inverse Order of Upper Arm)
-        glRotatef(p1, 0, 1, 0)
-        glRotatef(-r1, 0, 0, 1)
-        glRotatef(-h1, 1, 0, 0)
+        glRotatef(-p1, 0, 1, 0) # Undo Pitch (Inverse of p1)
+        glRotatef(-r1, 0, 0, 1) # Undo Roll
+        glRotatef(-h1, 1, 0, 0) # Undo Heading
         
         # Apply Forearm Transformations
         glRotatef(h2, 1, 0, 0)
         glRotatef(r2, 0, 0, 1)
-        glRotatef(-p2, 0, 1, 0) # Pitch invertiert
+        glRotatef(p2, 0, 1, 0) # Pitch (Positive = Forward)
         self._draw_segment(ARM_LENGTH_2, (0.2, 1, 0.2))
         
         glPopMatrix()
