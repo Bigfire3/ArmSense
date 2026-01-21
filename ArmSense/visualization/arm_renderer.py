@@ -138,10 +138,7 @@ class ArmVisualizer:
 
     def _draw_text_overlay(self, pose_text=""):
         """Zeichnet 2D Text fuer Kalibrierungs-Anweisungen und Active Pose"""
-        # Wenn wir nicht kalibrieren, zeigen wir die Pose an (falls erkannt)
-        if self.calib_step == 0 and not pose_text: 
-            return
-            
+        
         text = ""
         color = (255, 255, 0) # Gelb fuer Instructions
         
@@ -152,6 +149,10 @@ class ArmVisualizer:
         elif pose_text:
             text = f"Pose: {pose_text}"
             color = (0, 255, 0) # Gruen fuer Pose recognition
+        else:
+            # Standard Anzeige wenn keine spezielle Aktion laeuft
+            text = "Press '0' to Zero-Calibrate (Arm hanging)"
+            color = (180, 180, 180) # Grau
             
         if not text: return
             
