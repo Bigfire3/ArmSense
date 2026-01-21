@@ -33,7 +33,7 @@ class SensorManager:
             self.outlier_counts[name] = 0
         
         try:
-            self.i2c = busio.I2C(board.SCL, board.SDA, frequency=Certificate000)
+            self.i2c = busio.I2C(board.SCL, board.SDA, frequency=10000)
             self.tca = adafruit_tca9548a.TCA9548A(self.i2c, address=MUX_ADDRESS)
             self._init_sensors()
         except Exception as e:
@@ -101,7 +101,7 @@ class SensorManager:
                         off_p = euler[2] - target[2]
                         
                         self.offsets[name] = (off_h, off_r, off_p)
-                        print(f"[HAL] {name} calibrated.")
+                        # print(f"[HAL] {name} calibrated.")
                         got_value = True
                     else:
                         time.sleep(0.02)
@@ -119,21 +119,21 @@ class SensorManager:
         oder wir speichern sie als 'Basis-Offsets'.
         Fuer Roll/Pitch (Neigung) nehmen wir DIESE Werte.
         """
-        print("[HAL] 2-Punkt Step 1: Hanging (Gravity Reference)...")
+        # print("[HAL] 2-Punkt Step 1: Hanging (Gravity Reference)...")
         # Wir nutzen die bestehen Funktion, speichern aber das Ergebnis temporaer
         # Da _calibrate_common direkt offsets schreibt, nutzen wir das.
         # Wir merken uns diese Offsets als 'hanging'
         self.calibrate_zero()
         self.temp_hanging_offsets = self.offsets.copy()
         self.calib_stage = 1 # Ab jetzt Live-Werte anzeigen
-        print("[HAL] Step 1 gespeichert. Weiter zu Step 2...")
+        # print("[HAL] Step 1 gespeichert. Weiter zu Step 2...")
 
     def calibrate_two_point_step2(self):
         """
         Schritt 2: Arm 90 Grad nach vorne (90,0,0).
         Wir nutzen die Heading-Korrektur von HIER.
         """
-        print("[HAL] 2-Punkt Step 2: Forward 90 deg (Heading Reference)...")
+        # print("[HAL] 2-Punkt Step 2: Forward 90 deg (Heading Reference)...")
         self.calibrate_reference_pose()
         forward_offsets = self.offsets.copy()
         

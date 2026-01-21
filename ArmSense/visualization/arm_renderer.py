@@ -90,8 +90,6 @@ class ArmVisualizer:
                     status = "AN" if self.pose_detection_active else "AUS"
                     print(f"[UI] Pose Detection: {status}")
                     self.calib_step = 0 # Ensure overlay shows pose
-                    print(f"[UI] Pose Detection: {status}")
-                    self.calib_step = 0 # Ensure overlay shows pose
 
             # --- MAUS STEUERUNG ---
             if event.type == pygame.MOUSEBUTTONDOWN:
