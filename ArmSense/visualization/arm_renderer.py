@@ -183,8 +183,10 @@ class ArmVisualizer:
         w, h = text_surface.get_width(), text_surface.get_height()
         # Use simple string data, ensure flipped=0 for 2D UI (Top-Left origin)
         text_data = pygame.image.tostring(text_surface, "RGBA", 0)
-
-        glDisable(GL_DEPTH_TEST)
+        
+        # --- FIXED: GL State ---
+        # Ensure we are drawing in clean 2D state
+        glPushAttrib(GL_ENABLE_BIT | GL_CURRENT_BIT)
         glMatrixMode(GL_PROJECTION)
         glPushMatrix()
         glLoadIdentity()
@@ -219,7 +221,9 @@ class ArmVisualizer:
         glMatrixMode(GL_PROJECTION)
         glPopMatrix()
         glMatrixMode(GL_MODELVIEW)
-        glEnable(GL_DEPTH_TEST)
+        # GL_DEPTH_TEST was disabled, re-enable if it was enabled
+        glPopAttrib()
+        # glEnable(GL_DEPTH_TEST) # Not needed with PopAttrib
 
     def render(self, sensor_data, pose_text=""):
         h1, r1, p1 = sensor_data["base"]
