@@ -127,17 +127,26 @@ class ArmVisualizer:
         glVertex3f(length, 0, 0)
         glEnd()
 
-    def _draw_text_overlay(self):
-        """Zeichnet 2D Text fuer Kalibrierungs-Anweisungen"""
-        if self.calib_step == 0: return
-        
+    def _draw_text_overlay(self, pose_text=""):
+        """Zeichnet 2D Text fuer Kalibrierungs-Anweisungen und Active Pose"""
+        # Wenn wir nicht kalibrieren, zeigen wir die Pose an (falls erkannt)
+        if self.calib_step == 0 and not pose_text: 
+            return
+            
         text = ""
+        color = (255, 255, 0) # Gelb fuer Instructions
+        
         if self.calib_step == 1:
             text = "STEP 1: Arm haengen lassen (Relaxed) -> [SPACE]"
         elif self.calib_step == 2:
             text = "STEP 2: Arm 90 Grad nach vorne (Forward) -> [SPACE]"
+        elif pose_text:
+            text = f"Pose: {pose_text}"
+            color = (0, 255, 0) # Gruen fuer Pose recognition
             
-        text_surface = self.font.render(text, True, (255, 255, 0))
+        if not text: return
+            
+        text_surface = self.font.render(text, True, color)
         text_data = pygame.image.tostring(text_surface, "RGBA", 1)
         w, h = text_surface.get_width(), text_surface.get_height()
 
@@ -179,7 +188,7 @@ class ArmVisualizer:
         glMatrixMode(GL_MODELVIEW)
         glEnable(GL_DEPTH_TEST)
 
-    def render(self, sensor_data):
+    def render(self, sensor_data, pose_text=""):
         h1, r1, p1 = sensor_data["base"]
         h2, r2, p2 = sensor_data["arm"]
 
@@ -200,14 +209,21 @@ class ArmVisualizer:
         # Oberarm
         glPushMatrix()
         glRotatef(h1, 1, 0, 0)
-        glRotatef(p1, 0, 0, -1)
-        glRotatef(r1, 0, 1, 0)
+        glRotatef(r1, 0, 0, 1) # Roll -> Z (Sideways)
+        glRotatef(p1, 0, 1, 0) # Pitch -> Y (Forward)
         self._draw_segment(ARM_LENGTH_1, (1, 0.2, 0.2))
         
         # Unterarm
         glTranslatef(ARM_LENGTH_1, 0, 0)
-        glRotatef(-r1, 0, 1, 0); glRotatef(p1, 0, 0, 1); glRotatef(-h1, 1, 0, 0)
-        glRotatef(h2, 1, 0, 0); glRotatef(p2, 0, 0, 1); glRotatef(r2, 0, 1, 0)
+        # Undo Transformations (Inverse Order of Upper Arm)
+        glRotatef(-p1, 0, 1, 0)
+        glRotatef(-r1, 0, 0, 1)
+        glRotatef(-h1, 1, 0, 0)
+        
+        # Apply Forearm Transformations
+        glRotatef(h2, 1, 0, 0)
+        glRotatef(r2, 0, 0, 1)
+        glRotatef(p2, 0, 1, 0)
         self._draw_segment(ARM_LENGTH_2, (0.2, 1, 0.2))
         
         glPopMatrix()
@@ -215,7 +231,7 @@ class ArmVisualizer:
         glPopMatrix()
 
         self._draw_axes_hud()
-        self._draw_text_overlay()
+        self._draw_text_overlay(pose_text)
         
         pygame.display.flip()
         self.clock.tick(FPS)

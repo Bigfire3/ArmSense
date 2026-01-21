@@ -22,6 +22,7 @@ class SensorManager:
         self.sensors = {}
         self.offsets = {}
         self.dummy_mode = False
+        self.is_calibrated = False # Flag für abgeschlossene 2-Punkt-Kalibrierung
         
         # Speicher für Glitch-Filter
         self.last_valid_data = {}
@@ -144,6 +145,7 @@ class SensorManager:
             final_offsets[name] = merged
             
         self.offsets = final_offsets
+        self.is_calibrated = True
         print(f"[HAL] 2-Punkt Kalibrierung abgeschlossen: {self.offsets}")
 
     def _angle_diff(self, a, b):
