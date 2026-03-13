@@ -46,7 +46,7 @@ cd ArmSense
 source .venv/bin/activate
 ```
 ```bash
-python ArmSense/main.py
+python main.py
 ```
 
 ### Steuerung (Tastatur & Maus)
