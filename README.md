@@ -40,6 +40,12 @@ Das System liest Quaternion-Daten von BNO055-Sensoren aus, verarbeitet diese kin
 
 Starten des Programms:
 ```bash
+cd ArmSense
+```
+```bash
+source .venv/bin/activate
+```
+```bash
 python ArmSense/main.py
 ```
 
