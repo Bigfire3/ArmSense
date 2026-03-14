@@ -22,6 +22,7 @@ class SensorManager:
         self.offsets = {}
         self.alignments = {} 
         self.dummy_mode = False
+        self.test_data_queue = [] # Neu: Warteschlange für hardcodierte Sensordaten im Test
         
         # --- Speicher für Filterung ---
         self.last_valid_data = {}
@@ -89,15 +90,37 @@ class SensorManager:
 
         print("[HAL] Ausrichtung für ungenaue Montage kompensiert.")
 
+    def inject_test_data(self, data_list):
+        """Injiziert eine Liste von Dictionaries mit Sensordaten für den Dummy-Modus."""
+        self.test_data_queue = data_list
+        # Wichtig: Wir aktivieren den Dummy-Modus, damit keine Hardware gepollt wird
+        self.dummy_mode = True
+
     def get_data(self, raw_align=False):
         data = {}
-        if self.dummy_mode: 
-            return {"base": (1,0,0,0), "arm": (1,0,0,0)}
         
-        for name, sensor in self.sensors.items():
+        # 1. Rohdaten sammeln (Entweder aus Test-Queue oder echter Hardware)
+        raw_sensor_data = {}
+        if self.dummy_mode: 
+            if self.test_data_queue:
+                # Nimm das nächste Element aus der Warteschlange
+                raw_sensor_data = self.test_data_queue.pop(0)
+            else:
+                raw_sensor_data = {"base": (1,0,0,0), "arm": (1,0,0,0)}
+        else:
+            for name, sensor in self.sensors.items():
+                try:
+                    q_raw = sensor.quaternion
+                    if q_raw and q_raw[0] is not None:
+                        raw_sensor_data[name] = q_raw
+                except: pass
+        
+        # 2. Filterung und Kalibrierung auf die gesammelten Rohdaten anwenden
+        for name in SENSOR_MAPPING.keys():
             try:
-                q_raw = sensor.quaternion
-                if q_raw and q_raw[0] is not None:
+                if name in raw_sensor_data:
+                    q_raw = raw_sensor_data[name]
+                    
                     # 1. Nullpunkt anwenden
                     offset = self.offsets.get(name, (1,0,0,0))
                     q_zeroed = q_mult(offset, q_raw)
@@ -131,12 +154,8 @@ class SensorManager:
                 else:
                     # Falls Sensor keine Daten liefert -> Letzten gültigen Wert nehmen
                     data[name] = self.last_valid_data.get(name, (1,0,0,0))
-            except: 
+            except Exception as e:
+                # Falls in der Mathe ein Fehler passiert -> Letzten gültigen Wert
                 data[name] = self.last_valid_data.get(name, (1,0,0,0))
         
-        # Sicherstellen, dass alle Mapping-Keys (base, arm) im Output sind
-        for name in SENSOR_MAPPING.keys():
-            if name not in data: 
-                data[name] = self.last_valid_data.get(name, (1, 0, 0, 0))
-                
         return data
